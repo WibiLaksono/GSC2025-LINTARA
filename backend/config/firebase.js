@@ -13,7 +13,15 @@ if (!admin.apps.length) {
     });
 }
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+if (!GEMINI_API_KEY) {
+  throw new Error('GEMINI_API_KEY is missing in .env');
+}
+
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
 const db = admin.firestore();
 const auth = admin.auth();
 
-module.exports = { db, auth };
+module.exports = { db, auth, GEMINI_API_KEY, GEMINI_API_URL  };

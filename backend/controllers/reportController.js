@@ -1,28 +1,112 @@
-const { db } = require('../config/firebase');
+const fs = require('fs');
+const axios = require('axios');
+const path = require('path');
+const multer = require('multer');
+const { db, GEMINI_API_URL } = require('../config/firebase');
+
 const reportCollection = db.collection("Report");
 
-// CREATE
-const createReport = async (req, res) => {
-  try {
-    const { UserID, ImageURL, Results, Category_trash, Location, Challenge_id } = req.body;
+// Konfigurasi penyimpanan gambar dengan multer
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
 
-    const newReport = {
-      UserID,
-      ImageURL,
-      Results,
-      Category_trash,
-      result,
-      Location,
-      Challenge_id,
-      Created_at: new Date(),
-    };
+// Filter jenis file
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
 
-    const docRef = await reportCollection.add(newReport);
-    res.status(201).json({ id: docRef.id, message: "Report created successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to create report", error: error.message });
+  if (extname && mimetype) {
+    cb(null, true);
+  } else {
+    cb(new Error('Hanya file gambar jpg, jpeg, atau png yang diperbolehkan.'));
   }
 };
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter
+});
+
+// Fungsi untuk mendeteksi kategori berdasarkan hasil Gemini
+const detectCategory = (text) => {
+  const categories = [];
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('organic')) categories.push('organic');
+  if (lowerText.includes('non-organic') || lowerText.includes('non organic')) categories.push('non-organic');
+  if (lowerText.includes('hazardous')) categories.push('hazardous');
+  return categories;
+};
+
+// CREATE
+const createReport = [
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      const imagePath = req.file.path;
+      const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+
+      const { UserID, Location, Challenge_id } = req.body;
+
+      const response = await axios.post(
+        GEMINI_API_URL,
+        {
+          contents: [{
+            parts: [
+              {
+                text: "Berdasarkan gambar ini, identifikasi jenis sampah yang ada. Tentukan apakah ini termasuk sampah Organic, Non-organic, atau Hazardous. Jika sampah ini Non-organic, klasifikasikan lebih lanjut menjadi plastik, logam, kertas, kaca, atau karet. Jika ini termasuk Hazardous, jelaskan jenis bahan berbahaya yang ada. Jika Organic, sebutkan apakah ini sampah Organic yang dapat terurai atau tidak. Berikan jawaban yang lengkap berdasarkan kategori sampah yang terdeteksi. (dont use character \n, \, /) (limit to just 50 words) (berikan responsenya dalam bahasa inggris) (berikan kategori dengan format [Organic, Non-organic, Hazardous]) "
+              },
+              {
+                inlineData: {
+                  mimeType: req.file.mimetype,
+                  data: imageBase64
+                }
+              }
+            ]
+          }]
+        },
+        {
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      const resultText = response.data.candidates[0].content.parts[0].text;
+      const categoryTrash = detectCategory(resultText);
+
+      const newReport = {
+        UserID,
+        ImageURL: imagePath,
+        Result: resultText,
+        Category_trash: categoryTrash,
+        Location,
+        Challenge_id: Challenge_id || null,
+        Created_at: new Date()
+      };
+
+      const docRef = await reportCollection.add(newReport);
+
+      fs.unlink(imagePath, (err) => {
+        if (err) console.error("Gagal hapus gambar lokal:", err.message);
+      });
+
+      res.status(201).json({
+        id: docRef.id,
+        message: "Report created with Gemini analysis",
+        result: resultText,
+        category: categoryTrash
+      });
+    } catch (error) {
+      console.error("Create report error:", error.response?.data || error.message);
+      res.status(500).json({ message: "Failed to create report", error: error.message });
+    }
+  }
+];
 
 // READ
 const getReports = async (req, res) => {
@@ -54,7 +138,9 @@ const updateReport = async (req, res) => {
       return res.status(403).json({ message: "You are not allowed to update this report" });
     }
 
-    const updatedData = { ImageURL, Results, Category_trash, Location, Challenge_id };
+    const updatedData = {
+      ImageURL, Results, Category_trash, Location, Challenge_id
+    };
     await reportCollection.doc(reportId).update(updatedData);
 
     res.status(200).json({ message: "Report updated successfully" });
@@ -86,12 +172,11 @@ const deleteReport = async (req, res) => {
   }
 };
 
-// GET: Hitung berapa report yang dikumpulkan oleh user dalam challenge
+// COUNT Reports by User in Challenge
 const countReportsByUserInChallenge = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Ambil semua report oleh user, yang juga ikut challenge
     const snapshot = await reportCollection
       .where("UserID", "==", userId)
       .where("Challenge_id", "!=", null)
@@ -112,7 +197,6 @@ const countReportsByUserInChallenge = async (req, res) => {
     res.status(500).json({ message: "Failed to count reports", error: error.message });
   }
 };
-
 
 module.exports = {
   createReport,
