@@ -29,7 +29,10 @@ export default function LoginPage() {
         try {
             const { token, uid, userData } = await loginUser({ email, password });
             setAuthToken(token);
-            console.log("Login successful:", userData);
+            console.log("Login successful:");
+            console.log("UID:", uid);
+            console.log("Token:", token);
+            console.log("User Data:", userData);
 
             router.push("/action");
         } catch (error) {

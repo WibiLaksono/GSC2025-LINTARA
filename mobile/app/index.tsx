@@ -9,7 +9,7 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter,usePathname } from "expo-router";
 import GestureRecognizer from "react-native-swipe-gestures";
 import { initializeAuthToken } from "../services/authService";
 import './global.css';
@@ -36,18 +36,23 @@ const images = [
 ];
 
 export default function Index() {
+  const pathname = usePathname();
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    console.log("Current route:", pathname);
+  }, [pathname]);
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const isAuthenticated = await initializeAuthToken();
-        if (isAuthenticated) {
+        if (isAuthenticated && pathname !== "/action") {
           router.replace("/action");
-        } else {
+        } else if (!isAuthenticated && pathname !== "/") {
           router.replace("/");
         }
       } catch (error) {
@@ -97,7 +102,8 @@ export default function Index() {
         resizeMode="cover"
       >
         {/* Gambar mockup HP */}
-        <View className="absolute top-[15%] items-center w-full h-[90%]">
+        <View className="absolute top-[10%] items-center w-full h-[90%]">
+          <Text className="text-white text-5xl mb-4">LINTARA</Text>
           <Animated.Image
             source={images[currentImageIndex].source}
             style={{ opacity: fadeAnim }}
@@ -107,7 +113,7 @@ export default function Index() {
         </View>
 
         {/* Panel putih 30% bagian bawah */}
-        <View className="absolute bottom-0 w-full h-[30%] bg-white rounded-t-3xl px-6 pt-4 items-center justify-start">
+        <View className="absolute bottom-0 w-full h-[30%] bg-white rounded-t-3xl px-6 pt-10 items-center justify-start">
           <Text className="text-lg font-semibold text-center text-black mb-3">
             {images[currentImageIndex].caption}
           </Text>

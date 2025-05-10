@@ -11,6 +11,7 @@ const createReport = async (req, res) => {
       ImageURL,
       Results,
       Category_trash,
+      result,
       Location,
       Challenge_id,
       Created_at: new Date(),

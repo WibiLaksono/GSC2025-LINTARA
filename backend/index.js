@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const challengeRouter = require("./routes/challengeRoutes");
 const challengeHistoricalRouter = require("./routes/challengeHistoricalRoutes");
 const followersRouter = require("./routes/followersRoutes");
@@ -18,6 +19,7 @@ app.use(express.json());
 const API_BASE = "/api";
 
 app.use('/api/auth', authRoutes);
+app.use(`${API_BASE}/users`, userRoutes);
 app.use(`${API_BASE}/challenges`, challengeRouter);
 app.use(`${API_BASE}/challenges/historical`, challengeHistoricalRouter);
 app.use(`${API_BASE}/followers`, followersRouter);
@@ -25,7 +27,6 @@ app.use(`${API_BASE}/reports`, reportsRouter);
 app.use(`${API_BASE}/posts`, PostsRouter);
 app.use(`${API_BASE}/likePost`, likePostRouter);
 app.use(`${API_BASE}/comment`, commentRouter);
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
