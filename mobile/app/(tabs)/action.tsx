@@ -8,73 +8,99 @@ import {
 } from "expo-camera";
 import * as Crypto from "expo-crypto";
 import * as FileSystem from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { getUserId, createReport, deleteReport } from "@/services/reportService";
 
 const dummyData = {
-  Plastic: [
-    require("../../assets/action-img/plastic1.jpeg"),
-    require("../../assets/action-img/plastic2.jpeg"),
+  Organic: [
+    require("../../assets/action-img/organic1.jpeg"),
+    require("../../assets/action-img/organic2.jpeg"),
   ],
-  Metal: [
-    require("../../assets/action-img/metal1.jpeg"),
-    require("../../assets/action-img/metal2.jpeg"),
+  "Non-Organic": [
+    require("../../assets/action-img/non-organic1.jpeg"),
+    require("../../assets/action-img/non-organic2.jpeg"),
   ],
-  Paper: [
-    require("../../assets/action-img/paper1.jpeg"),
-    require("../../assets/action-img/paper2.jpeg"),
-  ],
-  Glass: [
-    require("../../assets/action-img/glass1.jpeg"),
-    require("../../assets/action-img/glass2.jpeg"),
-  ],
-  Rubber: [
-    require("../../assets/action-img/rubber1.jpeg"),
-    require("../../assets/action-img/rubber2.jpeg"),
+  Hazard: [
+    require("../../assets/action-img/hazard1.jpeg"),
+    require("../../assets/action-img/hazard2.jpeg"),
   ],
 };
 
 const icons = {
-  Plastic: require("../../assets/icons/plastic.png"),
-  Metal: require("../../assets/icons/metal.png"),
-  Paper: require("../../assets/icons/paper.png"),
-  Glass: require("../../assets/icons/glass.png"),
-  Rubber: require("../../assets/icons/Rubber.png"),
+  Organic: require("../../assets/icons/organic.png"),
+  "Non-Organic": require("../../assets/icons/non-organic.png"),
+  Hazard: require("../../assets/icons/hazard.png"),
   Camera: require("../../assets/icons/camera.png"),
 };
 
+interface CapturedImage {
+  uri: string;
+  categories: (keyof typeof dummyData)[];
+}
+
 export default function ActionScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [mediaPermissionResponse, requestMediaPermission] =
-    MediaLibrary.usePermissions();
   const [showCamera, setShowCamera] = useState(false);
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [capturedImages, setCapturedImages] = useState<CapturedImage[]>([]);
   const [selectedCategory, setSelectedCategory] =
-    useState<keyof typeof dummyData>("Plastic");
+    useState<keyof typeof dummyData>("Organic");
   const [facing, setFacing] = useState<CameraType>("back");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const cameraRef = useRef<Camera | null>(null);
 
+  // Fungsi untuk memilih kategori acak
+  function getRandomCategories(): (keyof typeof dummyData)[] {
+    const allCategories: (keyof typeof dummyData)[] = ["Organic", "Non-Organic", "Hazard"];
+    const shuffled = allCategories.sort(() => 0.5 - Math.random());
+    const count = Math.floor(Math.random() * 3) + 1; // Ambil 1–3 kategori
+    return shuffled.slice(0, count);
+  }
+
   useEffect(() => {
-    if (!mediaPermissionResponse?.granted) {
-      requestMediaPermission();
-    }
+    const loadCapturedImages = async () => {
+      try {
+        const dir = FileSystem.documentDirectory + "captured-images/";
+        const files = await FileSystem.readDirectoryAsync(dir);
+
+        const loadedImages: CapturedImage[] = [];
+
+        for (const file of files) {
+          const uri = dir + file;
+          const randomCategories = getRandomCategories(); // Simulasi data asli
+
+          loadedImages.push({
+            uri,
+            categories: randomCategories,
+          });
+        }
+
+        setCapturedImages(loadedImages);
+      } catch (e) {
+        console.error("Failed to load local images:", e);
+      }
+    };
+
+    loadCapturedImages();
   }, []);
 
   const handleCapture = async () => {
     if (cameraRef.current) {
-      const photo: CameraCapturedPicture =
-        await cameraRef.current.takePictureAsync();
+      const photo: CameraCapturedPicture = await cameraRef.current.takePictureAsync();
 
       const fileName = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         photo.uri
       );
-      const newPath =
-        FileSystem.documentDirectory + `captured-images/${fileName}.jpeg`;
+      const newPath = FileSystem.documentDirectory + `captured-images/${fileName}.jpeg`;
 
       try {
         await FileSystem.makeDirectoryAsync(
@@ -87,20 +113,21 @@ export default function ActionScreen() {
           to: newPath,
         });
 
-        const asset = await MediaLibrary.createAssetAsync(newPath);
-        await MediaLibrary.createAlbumAsync("lintara", asset, false);
-
-        setCapturedImages((prev) => [newPath, ...prev]);
-
-        // Get user ID and create report with additional data
+        const randomCategories = getRandomCategories();
         const userId = await getUserId();
+
         await createReport({
           UserID: userId,
-          Category_trash: selectedCategory,
+          Category_trash: randomCategories,
           ImageURL: newPath,
           result: null,
           Location: null,
         });
+
+        setCapturedImages((prev) => [
+          { uri: newPath, categories: randomCategories },
+          ...prev,
+        ]);
       } catch (error) {
         console.error("Error saving image:", error);
       }
@@ -117,8 +144,12 @@ export default function ActionScreen() {
 
     try {
       for (const imageUri of selectedImages) {
-        await deleteReport(imageUri); // Assuming imageUri is used as the report ID
-        setCapturedImages((prev) => prev.filter((uri) => uri !== imageUri));
+        await deleteReport(imageUri);
+        await FileSystem.deleteAsync(imageUri, { idempotent: true });
+
+        setCapturedImages((prev) =>
+          prev.filter((img) => img.uri !== imageUri)
+        );
       }
       setSelectedImages([]);
       Alert.alert("Success", "Selected images have been deleted.");
@@ -128,9 +159,7 @@ export default function ActionScreen() {
     }
   };
 
-  if (!permission) {
-    return <View />;
-  }
+  if (!permission) return <View />;
 
   if (!permission.granted) {
     return (
@@ -174,13 +203,17 @@ export default function ActionScreen() {
 
   const filteredImages = [
     ...(dummyData[selectedCategory] || []),
-    ...capturedImages,
+    ...capturedImages
+      .filter((img) => img.categories.includes(selectedCategory))
+      .map((img) => img.uri),
   ];
 
   return (
     <View className="flex-1 bg-white">
       <View className="flex-row justify-between items-center h-[66px] shadow-xl shadow-black px-4 py-4 bg-green-200">
-        <Text className="text-xl font-bold text-green-950 text-center flex-1">Action</Text>
+        <Text className="text-xl font-bold text-green-950 text-center flex-1">
+          Action
+        </Text>
         <TouchableOpacity
           onPress={handleDelete}
           style={{ position: "absolute", right: 16 }}
@@ -188,6 +221,7 @@ export default function ActionScreen() {
           <Ionicons name="trash-outline" size={24} color="black" />
         </TouchableOpacity>
       </View>
+
       <View className="py-2 px-4 h-[90%]">
         <ScrollView
           horizontal
@@ -201,8 +235,10 @@ export default function ActionScreen() {
               onPress={() =>
                 setSelectedCategory(category as keyof typeof dummyData)
               }
-              className={`flex-row items-center h-10 w-28 mx-1 px-3 py-2 rounded-full ${
-                selectedCategory === category ? "bg-green-600" : "bg-gray-100"
+              className={`flex-row items-center h-10 mx-1 px-5 py-2 rounded-full ${
+                selectedCategory === category
+                  ? "bg-green-600"
+                  : "bg-gray-100"
               }`}
             >
               <Image
@@ -211,8 +247,10 @@ export default function ActionScreen() {
                 resizeMode="contain"
               />
               <Text
-                className={`ml-2 font-medium ${
-                  selectedCategory === category ? "text-white" : "text-black"
+                className={`ml-2 text-md font-medium ${
+                  selectedCategory === category
+                    ? "text-white"
+                    : "text-black"
                 }`}
               >
                 {category}
@@ -229,23 +267,23 @@ export default function ActionScreen() {
               key={index}
               className="shadow-lg shadow-black"
               onPress={() =>
-          setSelectedImages((prev) =>
-            prev.includes(uri)
-              ? prev.filter((item) => item !== uri)
-              : [...prev, uri]
-          )
+                setSelectedImages((prev) =>
+                  prev.includes(uri)
+                    ? prev.filter((item) => item !== uri)
+                    : [...prev, uri]
+                )
               }
               style={{
-          margin: 8,
-          borderWidth: selectedImages.includes(uri) ? 2 : 0,
-          borderColor: selectedImages.includes(uri) ? "green" : "transparent",
-          borderRadius: 8,
+                margin: 6,
+                borderWidth: selectedImages.includes(uri) ? 2 : 0,
+                borderColor: selectedImages.includes(uri) ? "green" : "transparent",
+                borderRadius: 8,
               }}
             >
               <Image
-          source={typeof uri === "string" ? { uri } : uri}
-          className="w-32 h-32 rounded-xl"
-          resizeMode="cover"
+                source={typeof uri === "string" ? { uri } : uri}
+                className="w-32 h-32 rounded-xl"
+                resizeMode="cover"
               />
             </TouchableOpacity>
           ))}

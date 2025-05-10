@@ -11,6 +11,7 @@ export default function Register() {
         email: string;
         firstName: string;
         lastName: string;
+        username:string;
         birthDate: string;
         password: string;
         confirmPassword: string;
@@ -19,6 +20,7 @@ export default function Register() {
         email: '',
         firstName: '',
         lastName: '',
+        username: '',
         birthDate: '',
         password: '',
         confirmPassword: '',
@@ -34,8 +36,8 @@ export default function Register() {
     };
 
     const validateForm = () => {
-        const { email, firstName, lastName, birthDate, password, confirmPassword } = form;
-        if (!email || !firstName || !lastName || !birthDate || !password || !confirmPassword) {
+        const { email, firstName, lastName, username, birthDate, password, confirmPassword } = form;
+        if (!email || !firstName || !lastName || username || !birthDate || !password || !confirmPassword) {
             Alert.alert('Error', 'All fields are required.');
             return false;
         }
@@ -55,6 +57,7 @@ export default function Register() {
                 email: form.email,
                 firstName: form.firstName,
                 lastName: form.lastName,
+                username :form.username,
                 birthDate: form.birthDate,
                 password: form.password,
                 gender: form.gender,
@@ -128,6 +131,12 @@ export default function Register() {
                 className="border border-gray-300 rounded-lg px-4 py-3 mb-3"
                 placeholder="Last name"
                 value={form.lastName}
+                onChangeText={(v) => handleChange('lastName', v)}
+            />
+            <TextInput
+                className="border border-gray-300 rounded-lg px-4 py-3 mb-3"
+                placeholder="Last name"
+                value={form.username}
                 onChangeText={(v) => handleChange('lastName', v)}
             />
 
