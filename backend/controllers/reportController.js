@@ -4,12 +4,23 @@ const reportCollection = db.collection("Report");
 // CREATE
 const createReport = async (req, res) => {
   try {
-    const { UserID, ImageURL, Category_trash, Location } = req.body;
+    const { UserID, ImageURL, Category_trash, result, Location } = req.body;
+    console.log("📥 Received from frontend:", req.body);
+
+    const missingFields = [];
+    if (!UserID) missingFields.push("UserID");
+    if (!ImageURL) missingFields.push("ImageURL");
+    if (!Category_trash) missingFields.push("Category_trash");
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({ error: "Missing required fields", missingFields });
+    }
 
     const newReport = {
       UserID,
       ImageURL,
       Category_trash,
+      result,
       Location,
       Created_at: new Date(),
     };

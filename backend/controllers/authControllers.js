@@ -72,4 +72,17 @@ const loginUser = async (req, res) => {
     }
 };
 
-module.exports = { registerUser, loginUser };
+// Forgot Password
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        await auth.generatePasswordResetLink(email);
+        res.status(200).json({ success: true, message: 'Password reset link sent to email' });
+    } catch (error) {
+        console.error('Error sending password reset email:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+module.exports = { registerUser, loginUser, forgotPassword};

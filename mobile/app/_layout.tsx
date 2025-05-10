@@ -5,6 +5,7 @@ export default function Layout() {
     <Stack>
       {/* Default screens */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
       {/* Modal Screens */}
       <Stack.Screen
