@@ -17,28 +17,63 @@ export const getUserId = async () => {
     }
 };
 
-// CREATE
-export const createReport = async (reportData) => {
+// Create a new report
+export const createReport = async (reportData, imageFile) => {
     try {
-        const userId = await getUserId();
-        const response = await axios.post(`${API_BASE}/createReport`, {
-            ...reportData,
-            UserID: userId,
+        const formData = new FormData();
+        formData.append('image', {
+            uri: imageFile.uri,
+            type: imageFile.type,
+            name: imageFile.name,
+        });
+        Object.keys(reportData).forEach(key => {
+            formData.append(key, reportData[key]);
         });
 
-        const fullData = {
-            ...reportData,
-            UserID: userId,
-        };
+        const response = await axios.post(`${API_BASE}/createReport`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
 
-        console.log("🟢 [createReport] Data yang dikirim ke backend:", fullData);
-        
-        return response.data;
+        const { id, message, result, category } = response.data;
+
+        console.log("🟢 [createReport] Report created successfully:", {
+            id,
+            message,
+            result,
+            category,
+        });
+
+        return { id, message, result, category };
     } catch (error) {
-        console.error("🔴 Backend error:", error.response?.data);
+        console.error("🔴 [createReport] Error creating report:", error.response?.data || error.message);
         throw new Error(error.response?.data?.message || "Failed to create report");
     }
 };
+
+// Get a report by ID
+export const getReportById = async (reportId) => {
+    try {
+        const response = await axios.get(`${API_BASE}/getReport/${reportId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching report by ID:', error);
+        throw error.response ? error.response.data : error;
+    }
+};
+
+// Count reports by user in a challenge
+export const countReportsByUserInChallenge = async (userId) => {
+    try {
+        const response = await axios.get(`${API_BASE}/countByUser/${userId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error counting reports by user in challenge:', error);
+        throw error.response ? error.response.data : error;
+    }
+};
+
 
 // READ
 export const getReports = async () => {
@@ -71,8 +106,10 @@ export const deleteReport = async (reportId) => {
         const response = await axios.delete(`${API_BASE}/deleteReport/${reportId}`, {
             data: { UserID: userId },
         });
+        console.log("🟢 [deleteReport] Response sent to database:", response.data);
         return response.data;
     } catch (error) {
+        console.error("🔴 [deleteReport] Error:", error.response?.data || error.message);
         throw new Error(error.response?.data?.message || "Failed to delete report");
     }
 };

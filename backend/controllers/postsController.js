@@ -4,11 +4,12 @@ const postCollection = db.collection("Post");
 // CREATE Post
 const createPost = async (req, res) => {
   try {
-    const { UserID, Caption, ImageURL, Location } = req.body;
+    const { UserID, Caption, allowedComment, ImageURL, Location } = req.body;
 
     const newPost = {
       UserID,
       Caption,
+      allowedComment,
       ImageURL,
       Location,
       Created_at: new Date(),
@@ -33,6 +34,30 @@ const getAllPosts = async (req, res) => {
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch posts", error: error.message });
+  }
+};
+
+// READ Posts by UserID
+const getAllPostsUser = async (req, res) => {
+  try {
+    console.log("Request params:", req.params);
+
+    const userId = req.params.id; // Adjusted to match the logged key 'id'
+    const snapshot = await postCollection.where("UserID", "==", userId).get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: "No posts found for this user" });
+    }
+
+    const posts = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error("Error fetching posts by user ID:", error);
+    res.status(500).json({ message: "Failed to fetch posts by user ID", error: error.message });
   }
 };
 
@@ -81,5 +106,6 @@ module.exports = {
   createPost,
   getAllPosts,
   updatePost,
-  deletePost
+  deletePost,
+  getAllPostsUser
 };

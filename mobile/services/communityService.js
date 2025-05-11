@@ -52,6 +52,20 @@ export const getAllPosts = async () => {
     return response.data;
 };
 
+export const getAllPostsUser = async () => {
+    try {
+        const userID = await getUserID();
+        const route = `${BASE_URL}/posts/${userID}`;
+        console.log('Route for getAllPostsUser:', route);
+        const response = await axios.get(route);
+        console.log('Response from getAllPostsUser:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching posts by user auth:', error.message);
+        throw error.response ? error.response.data : error;
+    }
+};
+
 export const updatePost = async (postId, caption, imageURL, location) => {
     const userID = await getUserID();
     const response = await axios.put(`${BASE_URL}/posts/updatePost/${postId}`, {
@@ -71,6 +85,10 @@ export const deletePost = async (postId) => {
 // Likes Service
 export const likePost = async (postId) => {
     const userID = await getUserID();
+    console.log('Sending data to database:', {
+        PostID: postId,
+        UserID: userID,
+    });
     const response = await axios.post(`${BASE_URL}/likePost/createLike`, {
         PostID: postId,
         UserID: userID,
@@ -106,6 +124,11 @@ export const unlikePost = async (postId) => {
 // Comments Service
 export const createComment = async (postId, comment) => {
     const userID = await getUserID();
+    console.log('Sending data to database:', {
+        PostID: postId,
+        UserID: userID,
+        Comment: comment,
+    });
     const response = await axios.post(`${BASE_URL}/comment/create`, {
         PostID: postId,
         UserID: userID,
@@ -115,15 +138,19 @@ export const createComment = async (postId, comment) => {
 };
 
 export const getCommentsByPost = async (postId) => {
-    const response = await axios.get(`${BASE_URL}/comment/byPost/${postId}`);
-    const data = response.data;
+    try {
+        const response = await axios.get(`${BASE_URL}/comment/byPost/${postId}`);
+        const { success, comments } = response.data;
 
-    const commentCount = data.reduce((count, item) => {
-        if (item.PostID === postId) {
-            count++;
+        if (!success) {
+            throw new Error('Failed to retrieve comments');
         }
-        return count;
-    }, 0);
 
-    return { data, commentCount };
+        const commentCount = comments.length;
+
+        return { data: comments, commentCount };
+    } catch (error) {
+        console.error('Error fetching comments:', error.message);
+        throw error.response ? error.response.data : error;
+    }
 };

@@ -1,23 +1,29 @@
-import { useEffect, useState } from "react";
-import { Stack, useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  TextInput,
-  Image,
-  FlatList,
-  Pressable,
-  Modal,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import {
+  createComment,
   getAllPosts,
   getCommentsByPost,
-  createComment,
+  getLikedByUsers,
+  likePost,
+  unlikePost,
 } from "@/services/communityService";
+import {
+  Feather,
+  FontAwesome,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -26,11 +32,11 @@ export default function CommunityScreen() {
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
+  const [userID, setUserID] = useState(null); // Store UserID
 
   useEffect(() => {
     const fetchPosts = async () => {
       const result = await getAllPosts();
-  
       const normalizedPosts = result.map((item) => ({
         ID: item.id,
         caption: item.Caption,
@@ -40,28 +46,62 @@ export default function CommunityScreen() {
         username: "User",
         user_image: "",
       }));
-  
-      console.log("Normalized posts:", normalizedPosts);
       setPosts(normalizedPosts);
     };
-  
+
     fetchPosts();
+    const fetchUserID = async () => {
+      const id = await getUserID();
+      setUserID(id); // Set the userID
+    };
+
+    fetchUserID();
   }, []);
-  
 
   const openCommentModal = async (post) => {
+    console.log("Opening comment modal for post:", post.ID);
+    setCommentModalVisible(true);
     setSelectedPost(post);
     const res = await getCommentsByPost(post.ID);
+    console.log("Comments for post:", res.data);
     setComments(res.data || []);
-    setCommentModalVisible(true);
   };
 
   const handleAddComment = async () => {
     if (newComment.trim()) {
-      await createComment(selectedPost.ID, newComment);
-      const res = await getCommentsByPost(selectedPost.ID);
-      setComments(res.data || []);
-      setNewComment("");
+      await createComment(selectedPost.ID, newComment); // Kirimkan komentar ke database
+      const res = await getCommentsByPost(selectedPost.ID); // Ambil komentar terbaru
+      setComments(res.data || []); // Update state comments
+      setNewComment(""); // Reset input
+    }
+  };
+
+  const handleLikePost = async (post) => {
+    if (!userID) return; // Ensure userID is available
+
+    try {
+      // Check if the user has already liked the post
+      const isLiked = (await getLikedByUsers(post.ID)).data.some(
+        (like) => like.UserID === userID
+      );
+
+      if (isLiked) {
+        // Unlike the post if already liked
+        await unlikePost(post.ID);
+      } else {
+        // Like the post if not already liked
+        await likePost(post.ID);
+      }
+
+      // Fetch updated likes count and update the post state
+      const updatedLikes = await getLikedByUsers(post.ID);
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p.ID === post.ID ? { ...p, likes: updatedLikes.postCount } : p
+        )
+      );
+    } catch (error) {
+      console.error("Error handling like/unlike post:", error);
     }
   };
 
@@ -85,58 +125,37 @@ export default function CommunityScreen() {
       </View>
       <Text className="mb-2">{item.caption}</Text>
       {item.image_url?.startsWith("http") && (
-        <Image source={{ uri: item.image_url }} className="w-full h-48 rounded-md" />
+        <Image
+          source={{ uri: item.image_url }}
+          className="w-full h-48 rounded-md"
+        />
       )}
       <View className="flex-row justify-between mt-2">
         <TouchableOpacity
-          onPress={async () => {
-            const userID = await getUserID();
-            const isLiked = comments.some(
-              (comment) => comment.UserID === userID && comment.PostID === item.ID
-            );
-        
-            if (isLiked) {
-              await unlikePost(item.ID);
-            } else {
-              await likePost(item.ID);
-            }
-        
-            const updatedLikes = await getLikedByUsers(item.ID);
-            setPosts((prevPosts) =>
-              prevPosts.map((post) =>
-                post.ID === item.ID
-                  ? { ...post, likes: updatedLikes.postCount }
-                  : post
-              )
-            );
-          }}
+          onPress={() => handleLikePost(item)}
           className="flex-row items-center"
         >
           <FontAwesome
-            name={
-              comments.some((comment) => comment.UserID === userID && comment.PostID === item.ID)
-                ? "heart"
-                : "heart-o"
-            }
+            name={item.likes && item.likes > 0 ? "heart" : "heart-o"}
             size={18}
-            color={
-              comments.some((comment) => comment.UserID === userID && comment.PostID === item.ID)
-                ? "red"
-                : "gray"
-            }
+            color={item.likes && item.likes > 0 ? "red" : "gray"}
             className="mr-2"
           />
           <Text>{item.likes || 0}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={async () => {
-        const res = await getCommentsByPost(item.ID);
-        openCommentModal(item);
-          }}
+          onPress={() => openCommentModal(item)}
           className="flex-row items-center"
         >
-          <MaterialCommunityIcons name="comment-text-outline" size={18} color="gray" className="mr-2" />
-          <Text>{comments.filter(comment => comment.PostID === item.ID).length}</Text>
+          <MaterialCommunityIcons
+            name="comment-text-outline"
+            size={18}
+            color="gray"
+            className="mr-2"
+          />
+          <Text>
+            {comments.filter((comment) => comment.PostID === item.ID).length}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -175,11 +194,13 @@ export default function CommunityScreen() {
         </TouchableOpacity>
 
         {posts.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-10">Nothing post to see</Text>
+          <Text className="text-center text-gray-400 mt-10">
+            Nothing post to see
+          </Text>
         ) : (
           <FlatList
             data={posts}
-            keyExtractor={(item, index) => (item?.ID ? item.ID.toString() : index.toString())}
+            keyExtractor={(item) => item.ID.toString()}
             renderItem={renderPost}
             showsVerticalScrollIndicator={false}
           />
@@ -191,43 +212,48 @@ export default function CommunityScreen() {
         visible={commentModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
+        transparent={true}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
+          className="flex-1 justify-end"
         >
-          <View className="flex-1 p-4 bg-white">
-            <TouchableOpacity onPress={() => setCommentModalVisible(false)}>
-              <Text className="text-blue-500 mb-4">Close</Text>
-            </TouchableOpacity>
+          <View className="h-[40%] p-4 bg-gray-100 shadow-black shadow-lg rounded-t-lg">
+        <TouchableOpacity onPress={() => setCommentModalVisible(false)}>
+          <Text className="text-blue-500 mb-4">Close</Text>
+        </TouchableOpacity>
 
-            <FlatList
-              data={comments}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <View className="mb-3 border-b border-gray-200 pb-2">
-                  <Text className="font-semibold">{item.username}</Text>
-                  <Text className="text-gray-700">{item.comment}</Text>
-                </View>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
-
-            {/* Input Comment */}
-            <View className="flex-row items-center border-t pt-2 mt-2">
-              <TextInput
-                placeholder="Add a comment"
-                value={newComment}
-                onChangeText={setNewComment}
-                className="flex-1 border border-gray-300 rounded-md p-2"
-              />
-              <TouchableOpacity
-                onPress={handleAddComment}
-                className="ml-2 bg-green-500 px-4 py-2 rounded-md"
-              >
-                <Text className="text-white">Send</Text>
-              </TouchableOpacity>
+        {/* Scrollable Comments */}
+        <FlatList
+          data={comments}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View className="mb-3 border-b border-gray-200 pb-2">
+          <Text className="font-semibold">
+            {item.Username || "User"}
+          </Text>
+          <Text className="text-gray-700">{item.Comment}</Text>
             </View>
+          )}
+          showsVerticalScrollIndicator={false}
+          className="flex-1"
+        />
+
+        {/* Static Input Comment */}
+        <View className="flex-row items-center border-t pt-2">
+          <TextInput
+            placeholder="Add a comment"
+            value={newComment}
+            onChangeText={setNewComment}
+            className="flex-1 border border-gray-300 rounded-md p-2"
+          />
+          <TouchableOpacity
+            onPress={handleAddComment}
+            className="ml-2 bg-green-500 px-4 py-2 rounded-md"
+          >
+            <Text className="text-white">Send</Text>
+          </TouchableOpacity>
+        </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>

@@ -4,29 +4,47 @@ const challengeCollection = db.collection('Challenge');
 // CREATE
 const createChallenge = async (req, res) => {
   try {
+    console.log('Request body:', req.body); // Log data sent from frontend
+
     const {
       UserID,
       Description,
+      ChallengeName,
       Max_Participant,
       Location,
       Start_date,
       End_date,
       ImageURL,
       Requirements,
-      E_certificate_URL,
+      Reward,
       Goals
     } = req.body;
 
+    // Parse Start_date
+    const [startDay, startMonth, startYear] = Start_date.split('/');
+    const parsedStartDate = new Date(`${startYear}-${startMonth}-${startDay}`);
+    if (isNaN(parsedStartDate)) {
+      return res.status(400).json({ message: 'Invalid Start_date format' });
+    }
+
+    // Parse End_date
+    const [endDay, endMonth, endYear] = End_date.split('/');
+    const parsedEndDate = new Date(`${endYear}-${endMonth}-${endDay}`);
+    if (isNaN(parsedEndDate)) {
+      return res.status(400).json({ message: 'Invalid End_date format' });
+    }
+
     const newChallenge = {
       UserID,
+      ChallengeName,
       Description,
       Max_Participant,
       Location,
-      Start_date: new Date(Start_date),
-      End_date: new Date(End_date),
+      Start_date: parsedStartDate,
+      End_date: parsedEndDate,
       ImageURL,
       Requirements,
-      E_certificate_URL,
+      Reward,
       Goals,
       Created_at: new Date(),
       Deleted_at: null // ← soft delete field
@@ -53,6 +71,27 @@ const getAllChallenges = async (req, res) => {
   }
 };
 
+// READ BY ID
+const getChallengeById = async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+
+    const doc = await challengeCollection.doc(challengeId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    const challengeData = doc.data();
+    if (challengeData.Deleted_at) {
+      return res.status(400).json({ message: 'This challenge has been deleted' });
+    }
+
+    res.status(200).json({ id: doc.id, ...challengeData });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get challenge', error: error.message });
+  }
+};
+
 // UPDATE
 const updateChallenge = async (req, res) => {
   try {
@@ -60,13 +99,14 @@ const updateChallenge = async (req, res) => {
     const {
       UserID,
       Description,
+      ChallengeName,
       Max_Participant,
       Location,
       Start_date,
       End_date,
       ImageURL,
       Requirements,
-      E_certificate_URL,
+      Reward,
       Goals
     } = req.body;
 
@@ -87,6 +127,7 @@ const updateChallenge = async (req, res) => {
     }
 
     const updatedData = {
+      ChallengeName,
       Description,
       Max_Participant,
       Location,
@@ -94,7 +135,7 @@ const updateChallenge = async (req, res) => {
       End_date: new Date(End_date),
       ImageURL,
       Requirements,
-      E_certificate_URL,
+      Reward,
       Goals
     };
 
@@ -125,9 +166,12 @@ const deleteChallenge = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
   createChallenge,
   getAllChallenges,
+  getChallengeById,
   updateChallenge,
   deleteChallenge
 };

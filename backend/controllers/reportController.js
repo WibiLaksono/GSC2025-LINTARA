@@ -112,13 +112,33 @@ const createReport = [
 const getReports = async (req, res) => {
   try {
     const snapshot = await reportCollection.get();
-    const reports = snapshot.docs.map(doc => ({
+    const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
     res.status(200).json(reports);
   } catch (error) {
-    res.status(500).json({ message: "Failed to get reports", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to get reports", error: error.message });
+  }
+};
+
+// READ by ID
+const getReportById = async (req, res) => {
+  try {
+    const reportId = req.params.id;
+
+    const reportDoc = await reportCollection.doc(reportId).get();
+    if (!reportDoc.exists) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    res.status(200).json({ id: reportDoc.id, ...reportDoc.data() });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Failed to get report", error: error.message });
   }
 };
 
@@ -126,7 +146,14 @@ const getReports = async (req, res) => {
 const updateReport = async (req, res) => {
   try {
     const reportId = req.params.id;
-    const { UserID, ImageURL, Results, Category_trash, Location, Challenge_id } = req.body;
+    const {
+      UserID,
+      ImageURL,
+      Results,
+      Category_trash,
+      Location,
+      Challenge_id,
+    } = req.body;
 
     const reportDoc = await reportCollection.doc(reportId).get();
     if (!reportDoc.exists) {
@@ -135,17 +162,25 @@ const updateReport = async (req, res) => {
 
     const reportData = reportDoc.data();
     if (reportData.UserID !== UserID) {
-      return res.status(403).json({ message: "You are not allowed to update this report" });
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to update this report" });
     }
 
     const updatedData = {
-      ImageURL, Results, Category_trash, Location, Challenge_id
+      ImageURL,
+      Results,
+      Category_trash,
+      Location,
+      Challenge_id,
     };
     await reportCollection.doc(reportId).update(updatedData);
 
     res.status(200).json({ message: "Report updated successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update report", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to update report", error: error.message });
   }
 };
 
@@ -162,13 +197,17 @@ const deleteReport = async (req, res) => {
 
     const reportData = reportDoc.data();
     if (reportData.UserID !== UserID) {
-      return res.status(403).json({ message: "You are not allowed to delete this report" });
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to delete this report" });
     }
 
     await reportCollection.doc(reportId).delete();
     res.status(200).json({ message: "Report deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete report", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to delete report", error: error.message });
   }
 };
 
@@ -183,25 +222,64 @@ const countReportsByUserInChallenge = async (req, res) => {
       .get();
 
     const count = snapshot.size;
-    const reports = snapshot.docs.map(doc => ({
+    const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     res.status(200).json({
       userId,
       total_reports_in_challenge: count,
-      reports
+      reports,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to count reports", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to count reports", error: error.message });
+  }
+};
+
+// Fungsi menghitung jumlah report untuk semua user
+const getReportsCountByUser = async (req, res) => {
+  try {
+    const snapshot = await reportCollection.get();
+
+    const userReportCount = {};
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const userId = data.UserID;
+
+      if (userId) {
+        if (!userReportCount[userId]) {
+          userReportCount[userId] = 0;
+        }
+        userReportCount[userId] += 1;
+      }
+    });
+
+    const sortedLeaderboard = Object.entries(userReportCount)
+      .map(([userId, count]) => ({ userId, totalReports: count }))
+      .sort((a, b) => b.totalReports - a.totalReports)
+      .slice(0, 40);
+
+    res.status(200).json(sortedLeaderboard);
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Failed to count reports by user",
+        error: error.message,
+      });
   }
 };
 
 module.exports = {
   createReport,
   getReports,
+  getReportById,
   updateReport,
   deleteReport,
-  countReportsByUserInChallenge
+  countReportsByUserInChallenge,
+  getReportsCountByUser,
 };

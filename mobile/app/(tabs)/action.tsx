@@ -1,39 +1,21 @@
-import { logoutUser } from "@/services/authService";
-import { Ionicons } from "@expo/vector-icons";
 import {
-  CameraCapturedPicture,
-  CameraType,
-  CameraView,
-  useCameraPermissions,
-} from "expo-camera";
-import * as Crypto from "expo-crypto";
-import * as FileSystem from "expo-file-system";
-import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+  createReport,
+  deleteReport,
+  getReports,
+  getUserId,
+} from "@/services/reportService";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Modal,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { getUserId, createReport, deleteReport } from "@/services/reportService";
-
-const dummyData = {
-  Organic: [
-    require("../../assets/action-img/organic1.jpeg"),
-    require("../../assets/action-img/organic2.jpeg"),
-  ],
-  "Non-Organic": [
-    require("../../assets/action-img/non-organic1.jpeg"),
-    require("../../assets/action-img/non-organic2.jpeg"),
-  ],
-  Hazard: [
-    require("../../assets/action-img/hazard1.jpeg"),
-    require("../../assets/action-img/hazard2.jpeg"),
-  ],
-};
 
 const icons = {
   Organic: require("../../assets/icons/organic.png"),
@@ -42,186 +24,141 @@ const icons = {
   Camera: require("../../assets/icons/camera.png"),
 };
 
-interface CapturedImage {
-  uri: string;
-  categories: (keyof typeof dummyData)[];
+interface Report {
+  id: string;
+  ImageURL: string;
+  Category_trash: string[];
+  Result: string;
 }
 
 export default function ActionScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [showCamera, setShowCamera] = useState(false);
-  const [capturedImages, setCapturedImages] = useState<CapturedImage[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState<keyof typeof dummyData>("Organic");
-  const [facing, setFacing] = useState<CameraType>("back");
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const cameraRef = useRef<Camera | null>(null);
-
-  // Fungsi untuk memilih kategori acak
-  function getRandomCategories(): (keyof typeof dummyData)[] {
-    const allCategories: (keyof typeof dummyData)[] = ["Organic", "Non-Organic", "Hazard"];
-    const shuffled = allCategories.sort(() => 0.5 - Math.random());
-    const count = Math.floor(Math.random() * 3) + 1; // Ambil 1–3 kategori
-    return shuffled.slice(0, count);
-  }
+  const [modalVisible, setModalVisible] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Organic");
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
 
   useEffect(() => {
-    const loadCapturedImages = async () => {
+    const fetchReports = async () => {
       try {
-        const dir = FileSystem.documentDirectory + "captured-images/";
-        const files = await FileSystem.readDirectoryAsync(dir);
-
-        const loadedImages: CapturedImage[] = [];
-
-        for (const file of files) {
-          const uri = dir + file;
-          const randomCategories = getRandomCategories(); // Simulasi data asli
-
-          loadedImages.push({
-            uri,
-            categories: randomCategories,
-          });
-        }
-
-        setCapturedImages(loadedImages);
-      } catch (e) {
-        console.error("Failed to load local images:", e);
+        const fetchedReports = await getReports();
+        setReports(fetchedReports);
+      } catch (error) {
+        console.error("Failed to fetch reports:", error);
       }
     };
 
-    loadCapturedImages();
+    fetchReports();
   }, []);
 
-  const handleCapture = async () => {
-    if (cameraRef.current) {
-      const photo: CameraCapturedPicture = await cameraRef.current.takePictureAsync();
+  const saveImage = async (uri: string) => {
+    try {
+      const userId = await getUserId();
+      const imageFile = {
+        uri,
+        type: "image/jpeg",
+        name: uri.split("/").pop(),
+      };
 
-      const fileName = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        photo.uri
+      const reportData = {
+        UserID: userId,
+        Location: null,
+        Challenge_id: null,
+      };
+
+      const { id, result, category } = await createReport(
+        reportData,
+        imageFile
       );
-      const newPath = FileSystem.documentDirectory + `captured-images/${fileName}.jpeg`;
 
-      try {
-        await FileSystem.makeDirectoryAsync(
-          FileSystem.documentDirectory + "captured-images/",
-          { intermediates: true }
-        );
+      setReports((prev) => [
+        {
+          id,
+          ImageURL: uri,
+          Category_trash: category,
+          Result: result,
+        },
+        ...prev,
+      ]);
 
-        await FileSystem.moveAsync({
-          from: photo.uri,
-          to: newPath,
-        });
+      Alert.alert("Success", "Image uploaded and report created!");
+    } catch (error) {
+      console.error("Error saving image:", error);
+      Alert.alert("Error", "Failed to upload image.");
+    }
+  };
 
-        const randomCategories = getRandomCategories();
-        const userId = await getUserId();
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission required",
+        "Camera permission is required to take photos."
+      );
+      return;
+    }
 
-        await createReport({
-          UserID: userId,
-          Category_trash: randomCategories,
-          ImageURL: newPath,
-          result: null,
-          Location: null,
-        });
+    const result = await ImagePicker.launchCameraAsync();
+    if (!result.canceled && result.assets) {
+      saveImage(result.assets[0].uri);
+    }
+  };
 
-        setCapturedImages((prev) => [
-          { uri: newPath, categories: randomCategories },
-          ...prev,
-        ]);
-      } catch (error) {
-        console.error("Error saving image:", error);
-      }
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission required",
+        "Media library permission is required to pick images."
+      );
+      return;
+    }
 
-      setShowCamera(false);
+    const result = await ImagePicker.launchImageLibraryAsync();
+    if (!result.canceled && result.assets) {
+      saveImage(result.assets[0].uri);
     }
   };
 
   const handleDelete = async () => {
-    if (selectedImages.length === 0) {
-      Alert.alert("No images selected", "Please select images to delete.");
+    if (selectedReports.length === 0) {
+      Alert.alert("No reports selected", "Please select reports to delete.");
       return;
     }
 
     try {
-      for (const imageUri of selectedImages) {
-        await deleteReport(imageUri);
-        await FileSystem.deleteAsync(imageUri, { idempotent: true });
+      for (const reportId of selectedReports) {
+        await deleteReport(reportId);
 
-        setCapturedImages((prev) =>
-          prev.filter((img) => img.uri !== imageUri)
-        );
+        setReports((prev) => prev.filter((report) => report.id !== reportId));
       }
-      setSelectedImages([]);
-      Alert.alert("Success", "Selected images have been deleted.");
+      setSelectedReports([]);
+      Alert.alert("Success", "Selected reports have been deleted.");
     } catch (error) {
-      console.error("Error deleting images:", error);
-      Alert.alert("Error", "Failed to delete selected images.");
+      console.error("Error deleting reports:", error);
+      Alert.alert("Error", "Failed to delete selected reports.");
     }
   };
 
-  if (!permission) return <View />;
-
-  if (!permission.granted) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-center text-lg text-black px-4">
-          Kamera tidak diizinkan. Silakan aktifkan izin kamera di pengaturan.
-        </Text>
-        <TouchableOpacity
-          onPress={requestPermission}
-          className="mt-4 bg-green-600 px-4 py-2 rounded-full"
-        >
-          <Text className="text-white">Minta Izin</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (showCamera) {
-    return (
-      <View className="flex-1 bg-black">
-        <CameraView style={{ flex: 1 }} facing={facing} ref={cameraRef as any}>
-          <View className="absolute bottom-10 w-full flex-row justify-around px-6">
-            <TouchableOpacity onPress={() => setShowCamera(false)}>
-              <Text className="text-white text-lg">Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleCapture}>
-              <Image source={icons.Camera} className="w-10 h-10" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() =>
-                setFacing((prev) => (prev === "back" ? "front" : "back"))
-              }
-            >
-              <Text className="text-white text-lg">Flip</Text>
-            </TouchableOpacity>
-          </View>
-        </CameraView>
-      </View>
-    );
-  }
-
-  const filteredImages = [
-    ...(dummyData[selectedCategory] || []),
-    ...capturedImages
-      .filter((img) => img.categories.includes(selectedCategory))
-      .map((img) => img.uri),
-  ];
+  const filteredReports = reports.filter((report) =>
+    report.Category_trash.includes(selectedCategory)
+  );
 
   return (
     <View className="flex-1 bg-white">
+      {" "}
       <View className="flex-row justify-between items-center h-[66px] shadow-xl shadow-black px-4 py-4 bg-green-200">
+        {" "}
         <Text className="text-xl font-bold text-green-950 text-center flex-1">
-          Action
+          Action{" "}
         </Text>
         <TouchableOpacity
           onPress={handleDelete}
           style={{ position: "absolute", right: 16 }}
         >
-          <Ionicons name="trash-outline" size={24} color="black" />
-        </TouchableOpacity>
+          {" "}
+          <Ionicons name="trash-outline" size={24} color="black" />{" "}
+        </TouchableOpacity>{" "}
       </View>
-
       <View className="py-2 px-4 h-[90%]">
         <ScrollView
           horizontal
@@ -229,16 +166,12 @@ export default function ActionScreen() {
           className="mb-4 max-h-10"
           contentContainerStyle={{ alignItems: "center" }}
         >
-          {Object.keys(dummyData).map((category) => (
+          {["Organic", "Non-Organic", "Hazard"].map((category) => (
             <TouchableOpacity
               key={category}
-              onPress={() =>
-                setSelectedCategory(category as keyof typeof dummyData)
-              }
+              onPress={() => setSelectedCategory(category)}
               className={`flex-row items-center h-10 mx-1 px-5 py-2 rounded-full ${
-                selectedCategory === category
-                  ? "bg-green-600"
-                  : "bg-gray-100"
+                selectedCategory === category ? "bg-green-600" : "bg-gray-100"
               }`}
             >
               <Image
@@ -248,9 +181,7 @@ export default function ActionScreen() {
               />
               <Text
                 className={`ml-2 text-md font-medium ${
-                  selectedCategory === category
-                    ? "text-white"
-                    : "text-black"
+                  selectedCategory === category ? "text-white" : "text-black"
                 }`}
               >
                 {category}
@@ -262,40 +193,82 @@ export default function ActionScreen() {
         <ScrollView
           contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
         >
-          {filteredImages.map((uri, index) => (
+          {filteredReports.map((report) => (
             <TouchableOpacity
-              key={index}
+              key={report.id}
               className="shadow-lg shadow-black"
               onPress={() =>
-                setSelectedImages((prev) =>
-                  prev.includes(uri)
-                    ? prev.filter((item) => item !== uri)
-                    : [...prev, uri]
+                setSelectedReports((prev) =>
+                  prev.includes(report.id)
+                    ? prev.filter((item) => item !== report.id)
+                    : [...prev, report.id]
                 )
               }
               style={{
                 margin: 6,
-                borderWidth: selectedImages.includes(uri) ? 2 : 0,
-                borderColor: selectedImages.includes(uri) ? "green" : "transparent",
+                borderWidth: selectedReports.includes(report.id) ? 2 : 0,
+                borderColor: selectedReports.includes(report.id)
+                  ? "green"
+                  : "transparent",
                 borderRadius: 8,
               }}
             >
               <Image
-                source={typeof uri === "string" ? { uri } : uri}
+                source={{ uri: report.ImageURL }}
                 className="w-32 h-32 rounded-xl"
                 resizeMode="cover"
               />
+              <Text className="text-xs text-center mt-2">{report.Result}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         <TouchableOpacity
-          onPress={() => setShowCamera(true)}
+          onPress={() => setModalVisible(true)}
           className="absolute bottom-4 right-4 bg-green-600 p-4 rounded-full shadow-lg"
         >
           <Image source={icons.Camera} className="w-6 h-6" />
         </TouchableOpacity>
       </View>
+      {/* Modal Upload */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/30"
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View className="absolute bottom-0 w-full gap-3 bg-white rounded-t-2xl p-6 space-y-4">
+            <Text className="text-lg font-semibold text-center text-gray-700">
+              Choose Photo
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                takePhoto();
+                setModalVisible(false);
+              }}
+              className="bg-green-700 rounded-full py-3 items-center"
+            >
+              <Text className="text-white font-semibold">Take a new photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                pickImage();
+                setModalVisible(false);
+              }}
+              className="bg-green-700 rounded-full py-3 items-center"
+            >
+              <Text className="text-white font-semibold">
+                Select from gallery
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

@@ -22,7 +22,7 @@ const getUserById = async (req, res) => {
 // Edit User
 const editUser = async (req, res) => {
     const { uid } = req.params;
-    const { firstName, lastName, email, birthDate, gender, role, user_image } = req.body;
+    const { firstName, lastName, username, email, birthDate, gender, role, user_image } = req.body;
 
     try {
         const userDoc = db.collection('User').doc(uid);
@@ -32,11 +32,22 @@ const editUser = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
+        let parsedDate;
+        if (birthDate) {
+            const [day, month, year] = birthDate.split('/');
+            parsedDate = new Date(`${year}-${month}-${day}`); // Format: yyyy-mm-dd
+
+            if (isNaN(parsedDate)) {
+            return res.status(400).json({ success: false, error: 'Invalid birthDate format' });
+            }
+        }
+
         const updatedData = {
             First_name: firstName,
             Last_name: lastName,
+            Username: username,
             Email: email,
-            Birthdate: birthDate ? new Date(birthDate) : undefined,
+            Birthdate: parsedDate,
             Gender: gender,
             Role: role,
             user_image: user_image,
@@ -59,4 +70,41 @@ const editUser = async (req, res) => {
     }
 };
 
-module.exports = { editUser, getUserById };
+// Search user by name or username
+const searchUsers = async (req, res) => {
+    const { search } = req.query;
+
+    if (!search) {
+        return res.status(400).json({ success: false, message: "Query 'search' is required" });
+    }
+
+    try {
+        const snapshot = await db.collection('User').get();
+
+        const matchedUsers = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const name = `${data.First_name || ""} ${data.Last_name || ""}`.toLowerCase();
+            const username = data.Username?.toLowerCase() || "";
+
+            if (
+                name.includes(search.toLowerCase()) ||
+                username.includes(search.toLowerCase())
+            ) {
+                matchedUsers.push({
+                    id: doc.id,
+                    name,
+                    username,
+                    user_image: data.user_image || null,
+                });
+            }
+        });
+
+        res.status(200).json(matchedUsers);
+    } catch (error) {
+        console.error("Error searching users:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { getUserById, editUser, searchUsers };
