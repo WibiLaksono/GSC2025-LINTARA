@@ -135,7 +135,7 @@ export default function Register() {
             />
             <TextInput
                 className="border border-gray-300 rounded-lg px-4 py-3 mb-3"
-                placeholder="Last name"
+                placeholder="Username"
                 value={form.username}
                 onChangeText={(v) => handleChange('lastName', v)}
             />

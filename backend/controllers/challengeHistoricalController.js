@@ -28,6 +28,26 @@ const getParticipants = async (req, res) => {
   }
 };
 
+// GET: Retrieve all challenge historical data
+const getAllChallengeHistorical = async (req, res) => {
+  try {
+    const snapshot = await historicalCollection.get();
+
+    if (snapshot.empty) {
+      return res.status(200).json({ message: 'No historical data found', data: [] });
+    }
+
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.status(200).json({ data });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch historical data', error: error.message });
+  }
+};
+
 // POST: User joins a challenge
 const joinChallenge = async (req, res) => {
   try {
@@ -58,4 +78,4 @@ const joinChallenge = async (req, res) => {
   }
 };
 
-module.exports = { getParticipants, joinChallenge };
+module.exports = { getParticipants, joinChallenge, getAllChallengeHistorical };

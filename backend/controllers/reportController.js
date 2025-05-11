@@ -6,16 +6,23 @@ const { db, GEMINI_API_URL } = require('../config/firebase');
 
 const reportCollection = db.collection("Report");
 
-// Konfigurasi penyimpanan gambar dengan multer
+// Pastikan folder uploads ada
+const uploadFolder = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadFolder)) {
+  fs.mkdirSync(uploadFolder, { recursive: true });
+}
+
+// Konfigurasi multer
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: (req, file, cb) => {
+    cb(null, uploadFolder);
+  },
   filename: (req, file, cb) => {
     const uniqueName = Date.now() + '-' + file.originalname;
     cb(null, uniqueName);
   }
 });
 
-// Filter jenis file
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -30,11 +37,11 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter
 });
 
-// Fungsi untuk mendeteksi kategori berdasarkan hasil Gemini
+// Helper deteksi kategori
 const detectCategory = (text) => {
   const categories = [];
   const lowerText = text.toLowerCase();
@@ -50,8 +57,9 @@ const createReport = [
   async (req, res) => {
     try {
       const imagePath = req.file.path;
-      const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+      const relativePath = path.relative(path.join(__dirname, '..'), imagePath); // Simpan path relatif
 
+      const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
       const { UserID, Location, Challenge_id } = req.body;
 
       const response = await axios.post(
@@ -60,7 +68,7 @@ const createReport = [
           contents: [{
             parts: [
               {
-                text: "Berdasarkan gambar ini, identifikasi jenis sampah yang ada. Tentukan apakah ini termasuk sampah Organic, Non-organic, atau Hazardous. Jika sampah ini Non-organic, klasifikasikan lebih lanjut menjadi plastik, logam, kertas, kaca, atau karet. Jika ini termasuk Hazardous, jelaskan jenis bahan berbahaya yang ada. Jika Organic, sebutkan apakah ini sampah Organic yang dapat terurai atau tidak. Berikan jawaban yang lengkap berdasarkan kategori sampah yang terdeteksi. (dont use character \n, \, /) (limit to just 50 words) (berikan responsenya dalam bahasa inggris) (berikan kategori dengan format [Organic, Non-organic, Hazardous]) "
+                text: "Berdasarkan gambar ini, identifikasi jenis sampah yang ada. Tentukan apakah ini termasuk sampah Organic, Non-organic, atau Hazardous. Jika sampah ini Non-organic, klasifikasikan lebih lanjut menjadi plastik, logam, kertas, kaca, atau karet. Jika ini termasuk Hazardous, jelaskan jenis bahan berbahaya yang ada. Jika Organic, sebutkan apakah ini sampah Organic yang dapat terurai atau tidak. Berikan jawaban yang lengkap berdasarkan kategori sampah yang terdeteksi. (dont use character \n, \, /) (limit to just 50 words) (berikan responsenya dalam bahasa inggris) (berikan kategori dengan format [Organic, Non-organic, Hazardous])"
               },
               {
                 inlineData: {
@@ -81,7 +89,7 @@ const createReport = [
 
       const newReport = {
         UserID,
-        ImageURL: imagePath,
+        ImageURL: relativePath,
         Result: resultText,
         Category_trash: categoryTrash,
         Location,
@@ -90,10 +98,6 @@ const createReport = [
       };
 
       const docRef = await reportCollection.add(newReport);
-
-      fs.unlink(imagePath, (err) => {
-        if (err) console.error("Gagal hapus gambar lokal:", err.message);
-      });
 
       res.status(201).json({
         id: docRef.id,

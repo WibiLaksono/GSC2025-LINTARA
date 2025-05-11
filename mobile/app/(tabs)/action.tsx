@@ -36,6 +36,8 @@ export default function ActionScreen() {
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("Organic");
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
+  const [resultModalVisible, setResultModalVisible] = useState(false);
+  const [latestResult, setLatestResult] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -70,15 +72,21 @@ export default function ActionScreen() {
         imageFile
       );
 
+      const fileName = uri.split("/").pop();
+      const imageUrlFromServer = `http://192.168.56.2:5000/api/uploads/${fileName}`;
+
       setReports((prev) => [
         {
           id,
-          ImageURL: uri,
+          ImageURL: imageUrlFromServer,
           Category_trash: category,
           Result: result,
         },
         ...prev,
       ]);
+
+      setLatestResult(result); // ⬅️ Simpan hasil analisis
+      setResultModalVisible(true); // ⬅️ Tampilkan modal hasil
 
       Alert.alert("Success", "Image uploaded and report created!");
     } catch (error) {
@@ -145,20 +153,18 @@ export default function ActionScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      {" "}
       <View className="flex-row justify-between items-center h-[66px] shadow-xl shadow-black px-4 py-4 bg-green-200">
-        {" "}
         <Text className="text-xl font-bold text-green-950 text-center flex-1">
-          Action{" "}
+          Action
         </Text>
         <TouchableOpacity
           onPress={handleDelete}
           style={{ position: "absolute", right: 16 }}
         >
-          {" "}
-          <Ionicons name="trash-outline" size={24} color="black" />{" "}
-        </TouchableOpacity>{" "}
+          <Ionicons name="trash-outline" size={24} color="black" />
+        </TouchableOpacity>
       </View>
+
       <View className="py-2 px-4 h-[90%]">
         <ScrollView
           horizontal
@@ -230,6 +236,7 @@ export default function ActionScreen() {
           <Image source={icons.Camera} className="w-6 h-6" />
         </TouchableOpacity>
       </View>
+
       {/* Modal Upload */}
       <Modal
         visible={modalVisible}
@@ -268,6 +275,30 @@ export default function ActionScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Modal Result */}
+      <Modal
+        visible={resultModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setResultModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/30 px-6">
+          <View className="bg-gray-300 w-full rounded-2xl p-5 shadow-md shadow-black relative">
+            <Text className="text-lg font-bold mb-3">
+              Waste Detection Result
+            </Text>
+            <Text className="text-gray-800">{latestResult}</Text>
+
+            <TouchableOpacity
+              onPress={() => setResultModalVisible(false)}
+              className="absolute top-3 right-3 bg-white rounded-full border border-green-600 w-6 h-6 items-center justify-center"
+            >
+              <Text className="text-green-600 font-bold text-sm">×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
