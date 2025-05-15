@@ -37,7 +37,7 @@ export default function Register() {
 
     const validateForm = () => {
         const { email, firstName, lastName, username, birthDate, password, confirmPassword } = form;
-        if (!email || !firstName || !lastName || username || !birthDate || !password || !confirmPassword) {
+        if (!email || !firstName || !lastName || !username || !birthDate || !password || !confirmPassword) {
             Alert.alert('Error', 'All fields are required.');
             return false;
         }
@@ -137,7 +137,7 @@ export default function Register() {
                 className="border border-gray-300 rounded-lg px-4 py-3 mb-3"
                 placeholder="Username"
                 value={form.username}
-                onChangeText={(v) => handleChange('lastName', v)}
+                onChangeText={(v) => handleChange('username', v)}
             />
 
             {/* Birthdate */}

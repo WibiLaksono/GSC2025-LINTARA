@@ -1,50 +1,192 @@
-# Welcome to your Expo app 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# 🗑️♻️Lintara: Mobile Application to Solve Waste Problems
 
-## Get started
+Lintara is a mobile application that helps solve waste problems with various interactive and collaborative features. Designed to encourage environmental awareness, Lintara facilitates waste reporting, community, challenges, and tracking of user contributions to waste management.
 
-1. Install dependencies
+## 🎯 Key Features
 
-   ```bash
-   npm install
-   ```
+- **Waste Reporting**  
+  Users can report the waste they find. The application will identify the type of waste and provide follow-up suggestions.
 
-2. Start the app
+- **Community**  
+  Users can share experiences and waste findings to the public through the community feature.
 
-   ```bash
-   npx expo start
-   ```
+- **Challenges**  
+  Users can create or join environmental-themed challenges. Challenges have goals and prizes.
 
-In the output, you'll find options to open the app in a
+- **Leaderboard**  
+  View user rankings based on their contributions in reporting and participating in challenges.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Account Management**  
+  Users can manage their accounts, posts, and challenges.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Authentication with Firebase & JWT**  
+  Users can register using email and password (via Firebase Auth). After successful registration/login, the backend will generate a JWT to be used for secure API requests.
 
-## Get a fresh project
+## 🧰 Technology Used
 
-When you're ready, run:
+### Mobile (React Native + Expo)
+- **React Native** `0.79.2`
+- **Expo** `53`
+- **Expo Router**
+- **Tailwind CSS via NativeWind**
+- **State Management**: Zustand
+- **Media & Kamera**: `expo-camera`, `expo-media-library`, `expo-image-picker`
+- **UI**: `expo-blur`, `expo-haptics`, `react-native-vector-icons`, `react-native-svg`
+
+### Backend (Express.js + Node.js)
+- **Framework**: Express.js
+- **Image Upload**: Multer
+- **Auth**: Firebase Auth, JWT, bcrypt
+  - Register with **Email and Password** using **Firebase Authentication**
+  - Generate a **JWT token** after successful registration or login for secure API access
+- **AI Integrasi**: Gemini Pro Vision
+- **Database**: Firebase (Firestore)
+- **Middleware**: CORS, dotenv
+
+## 🚀 Getting Started
+
+### 🔁 Clone the Repository
 
 ```bash
-npm run reset-project
+git clone https://github.com/WibiLaksono/GSC2025-LINTARA.git
+cd GSC2025-LINTARA
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 📦 Prerequisites
+- Node.js v18 or later (v20+ recommended)
+- npm / yarn / pnpm
 
-## Learn more
+### ⚙️ Environment Configuration
 
-To learn more about developing your project with Expo, look at the following resources:
+Create a `.env` file in the Bakend folder with the following content:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_STORAGE_BUCKET
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_APP_ID
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID
 
-## Join the community
+FIREBASE_PRIVATE_KEY=YOUR_PRIVATE_KEY
+FIREBASE_CLIENT_EMAIL=YOUR_CLIENT_EMAIL
 
-Join our community of developers creating universal apps.
+JWT_SECRET=YOUR_JWT_SECRET
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 📲 Run the Application
+
+#### Backend
+
+```bash
+cd backend
+npm install
+node index.js
+```
+
+#### Mobile
+
+```bash
+cd mobile
+npm install
+npx expo start
+```
+
+## 📁 Directory Structure
+
+### Backend
+
+```
+backend/
+├── Config/
+│   └── firebase.js
+├── Controllers/
+│   ├── authControllers.js
+│   ├── challengeController.js
+│   ├── challengeHistoricalController.js
+│   ├── commentController.js
+│   ├── followersController.js
+│   ├── likePostController.js
+│   ├── postsController.js
+│   ├── reportController.js
+│   └── userControllers.js
+├── Routes/
+│   ├── authRoutes.js
+│   ├── challengeHistoricalRoutes.js
+│   ├── challengeRoutes.js
+│   ├── commentRoutes.js
+│   ├── followerRoutes.js
+│   ├── likePostRoutes.js
+│   ├── postsRoutes.js
+│   ├── reportRoutes.js
+│   └── userRoutes.js
+├── index.js
+├── package.json
+├── package-lock.json
+└── .gitignore
+```
+
+### Mobile
+
+```
+mobile/
+├── App/
+│   ├── (tabs)/
+│   │   ├── Challenge/
+│   │   │   ├── Detail/[id].tsx
+│   │   │   ├── _layout.tsx
+│   │   │   ├── Index.tsx
+│   │   │   ├── Join.tsx
+│   │   │   └── make.tsx
+│   │   ├── Community/
+│   │   │   ├── _layout.tsx
+│   │   │   ├── Create.tsx
+│   │   │   ├── Index.tsx
+│   │   │   └── search.tsx
+│   │   ├── Profile/
+│   │   │   ├── _layout.tsx
+│   │   │   ├── Edit.tsx
+│   │   │   └── index.tsx
+│   │   ├── _layout.tsx
+│   │   ├── Action.tsx
+│   │   └── leaderboard.tsx
+│   ├── Auth/
+│   │   ├── registerPage.tsx
+│   │   └── loginPage.tsx
+│   ├── _layout.tsx
+│   ├── Global.css
+│   └── index.tsx
+├── Assets/
+│   ├── Action-img/
+│   ├── Fonts/
+│   ├── Icons/
+│   ├── Images/
+│   └── post-images/
+├── Services/
+│   ├── authService.js
+│   ├── challengeService.js
+│   ├── communityService.js
+│   ├── followService.js
+│   ├── leaderboardService.js
+│   ├── reportService.js
+│   └── userService.js
+├── App.json
+├── .gitignore
+├── babel.config.json
+├── eslint.config.json
+├── metro.config.json
+├── nativewind-env.d.ts
+├── package-lock.json
+├── package.json
+├── react-native-vector-icons.d.ts
+├── tailwind.config.js
+├── tsconfig.json
+└── README.md
+```
+
+---
+
+🛠️ Created by: **Team Doa Ibu**
