@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import Constants from 'expo-constants';
 
-const API_BASE = "http://192.168.56.2:5000/api/reports";
+const BASE_URL = Constants.expoConfig.extra.apiBaseUrl;
 
 // Helper function to get user ID from AsyncStorage
 export const getUserId = async () => {
@@ -30,7 +31,7 @@ export const createReport = async (reportData, imageFile) => {
             formData.append(key, reportData[key]);
         });
 
-        const response = await axios.post(`${API_BASE}/createReport`, formData, {
+        const response = await axios.post(`${BASE_URL}/reports/createReport`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -55,7 +56,7 @@ export const createReport = async (reportData, imageFile) => {
 // Get a report by ID
 export const getReportById = async (reportId) => {
     try {
-        const response = await axios.get(`${API_BASE}/getReport/${reportId}`);
+        const response = await axios.get(`${BASE_URL}/reports/getReport/${reportId}`);
         return response.data;
     } catch (error) {
         console.error('Error fetching report by ID:', error);
@@ -66,7 +67,7 @@ export const getReportById = async (reportId) => {
 // Count reports by user in a challenge
 export const countReportsByUserInChallenge = async (userId) => {
     try {
-        const response = await axios.get(`${API_BASE}/countByUser/${userId}`);
+        const response = await axios.get(`${BASE_URL}/reports/countByUser/${userId}`);
         return response.data;
     } catch (error) {
         console.error('Error counting reports by user in challenge:', error);
@@ -78,7 +79,7 @@ export const countReportsByUserInChallenge = async (userId) => {
 // READ
 export const getReports = async () => {
     try {
-        const response = await axios.get(`${API_BASE}/getReports`);
+        const response = await axios.get(`${BASE_URL}/reports/getReports`);
         return response.data;
     } catch (error) {
         throw new Error(error.response?.data?.message || "Failed to get reports");
@@ -89,7 +90,7 @@ export const getReports = async () => {
 export const updateReport = async (reportId, updatedData) => {
     try {
         const userId = await getUserId();
-        const response = await axios.put(`${API_BASE}/updateReport/${reportId}`, {
+        const response = await axios.put(`${BASE_URL}/reports/updateReport/${reportId}`, {
             ...updatedData,
             UserID: userId,
         });
@@ -103,7 +104,7 @@ export const updateReport = async (reportId, updatedData) => {
 export const deleteReport = async (reportId) => {
     try {
         const userId = await getUserId();
-        const response = await axios.delete(`${API_BASE}/deleteReport/${reportId}`, {
+        const response = await axios.delete(`${BASE_URL}/reports/deleteReport/${reportId}`, {
             data: { UserID: userId },
         });
         console.log("🟢 [deleteReport] Response sent to database:", response.data);

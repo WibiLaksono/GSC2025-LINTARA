@@ -1,7 +1,8 @@
 // services/leaderboardService.ts
 import axios from 'axios';
+import Constants from 'expo-constants';
 
-const BASE_URL = 'http://192.168.56.2:5000/api';
+const BASE_URL = Constants.expoConfig.extra.apiBaseUrl;
 
 export const getReportsCountByUser = async () => {
     try {

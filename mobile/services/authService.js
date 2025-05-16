@@ -1,12 +1,13 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const API_URL = 'http://192.168.56.2:5000/api/auth';
+const BASE_URL = Constants.expoConfig.extra.apiBaseUrl;
 
 // Register User
 export const registerUser = async (data) => {
     try {
-        const response = await axios.post(`${API_URL}/register`, data);
+        const response = await axios.post(`${BASE_URL}/auth/register`, data);
         const { token, uid } = response.data;
         await AsyncStorage.setItem('jwtToken', token);
         await AsyncStorage.setItem('userUid', uid);
@@ -21,7 +22,7 @@ export const registerUser = async (data) => {
 // Login User
 export const loginUser = async (data) => {
     try {
-        const response = await axios.post(`${API_URL}/login`, data);
+        const response = await axios.post(`${BASE_URL}/auth/login`, data);
         const { token, uid, userData } = response.data;
         await AsyncStorage.setItem('jwtToken', token);
         await AsyncStorage.setItem('userUid', uid);
@@ -36,7 +37,7 @@ export const loginUser = async (data) => {
 // Edit User
 export const editUser = async (uid, data) => {
     try {
-        const response = await axios.put(`${API_URL}/edit/${uid}`, data);
+        const response = await axios.put(`${BASE_URL}/auth/edit/${uid}`, data);
         return response.data;
     } catch (error) {
         console.error('Error editing user:', error.response?.data || error.message);
@@ -47,7 +48,7 @@ export const editUser = async (uid, data) => {
 // Forgot Password
 export const forgotPassword = async (email) => {
     try {
-        const response = await axios.post(`${API_URL}/forgot-password`, { email });
+        const response = await axios.post(`${BASE_URL}/auth/forgot-password`, { email });
         return response.data;
     } catch (error) {
         console.error('Error sending password reset email:', error.response?.data || error.message);

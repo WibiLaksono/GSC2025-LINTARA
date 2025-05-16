@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const BASE_URL = 'http://192.168.56.2:5000/api';
+const BASE_URL = Constants.expoConfig.extra.apiBaseUrl;
 
 // Helper function to get UID from AsyncStorage
 const getStoredUid = async () => {
